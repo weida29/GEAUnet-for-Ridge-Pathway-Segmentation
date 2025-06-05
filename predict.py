@@ -178,7 +178,7 @@ if __name__ == "__main__":
 
 
     from nets.GEAUNet import self_net
-    model = self_net(n_classes=4).eval().to(device)
+    model = self_net(n_classes=3).eval().to(device)
 
     model_dict = torch.load(model_path)
     model.load_state_dict(model_dict)
