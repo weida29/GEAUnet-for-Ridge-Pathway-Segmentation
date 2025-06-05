@@ -8,7 +8,26 @@ from torch.utils.data.dataset import Dataset
 
 from utils.utils import cvtColor, preprocess_input
 
+def add_salt_pepper_noise(image, amount):
+    """
+    为输入图像覆盖一层椒盐噪声
+    :param image: 原始图像 (NumPy 数组)
+    :param amount: 添加椒盐噪声的密度, 接近0将只有少量噪声, 接近1则几乎满了
+    :return: 添加了椒盐噪声的图样 (NumPy 数组)
+    """
+    result = np.copy(image)
 
+    # 添加椒（黑色）噪声
+    num_salt = int(amount * image.size * 0.5)
+    indices_salt = np.random.choice(image.size, num_salt, replace=False)
+    result.flat[indices_salt] = 0  # 椒（黑色噪声）的值
+
+    # 添加盐（白色）噪声
+    num_pepper = int(amount * image.size * 0.5)
+    indices_pepper = np.random.choice(image.size, num_pepper, replace=False)
+    result.flat[indices_pepper] = 255  # 盐（白色噪声）的值
+
+    return result
 class UnetDataset(Dataset):
     def __init__(self, annotation_lines, input_shape, num_classes, train, dataset_path):
         super(UnetDataset, self).__init__()
@@ -89,15 +108,15 @@ class UnetDataset(Dataset):
             nh = int(nw/new_ar)
         image = image.resize((nw,nh), Image.BICUBIC)
         label = label.resize((nw,nh), Image.NEAREST)
-        
+
         #------------------------------------------#
         #   翻转图像
         #------------------------------------------#
         flip = self.rand()<.5
-        if flip: 
+        if flip:
             image = image.transpose(Image.FLIP_LEFT_RIGHT)
             label = label.transpose(Image.FLIP_LEFT_RIGHT)
-        
+
         #------------------------------------------#
         #   将图像多余的部分加上灰条
         #------------------------------------------#
@@ -131,7 +150,10 @@ class UnetDataset(Dataset):
 
         image_data = cv2.merge((cv2.LUT(hue, lut_hue), cv2.LUT(sat, lut_sat), cv2.LUT(val, lut_val)))
         image_data = cv2.cvtColor(image_data, cv2.COLOR_HSV2RGB)
-        
+        # 添加椒盐噪声
+        if random and self.rand() < 0.5:  # 50%的概率添加椒盐噪声
+            image_data = add_salt_pepper_noise(image_data, amount=0.08)
+            image_data = cvtColor(image_data)
         return image_data, label
 
 # DataLoader中collate_fn使用

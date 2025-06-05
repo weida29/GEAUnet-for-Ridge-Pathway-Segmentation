@@ -1,12 +1,11 @@
 import os
 
 import torch
-from nets.unet_training import CE_Loss, Dice_loss, Focal_Loss
+from utils.my_loss.lossfunction import CE_Loss, Dice_loss, Focal_Loss, GT_CrossEntropyLoss, GT_FocalLoss, GT_LovaszLoss
 from tqdm import tqdm
-
 from utils.utils import get_lr
 from utils.utils_metrics import f_score
-
+import utils.my_loss.lovasz_losses as L
 
 def fit_one_epoch(model_train, model, loss_history, eval_callback, optimizer, epoch, epoch_step, epoch_step_val, gen,
                   gen_val, Epoch, cuda, dice_loss, focal_loss, cls_weights, num_classes, fp16, scaler, save_period,
@@ -38,14 +37,24 @@ def fit_one_epoch(model_train, model, loss_history, eval_callback, optimizer, ep
             # ----------------------#
             #   前向传播
             # ----------------------#
-            outputs = model_train(imgs)
+            #outputs = model_train(imgs)
+            result = model_train(imgs)
+            if isinstance(result, tuple):
+                gt_pred, outputs = result
+            elif isinstance(result, dict):
+                outputs = result['out']
+            else:
+                outputs = result
             # ----------------------#
             #   损失计算
             # ----------------------#
             if focal_loss:
-                loss = Focal_Loss(outputs, pngs, weights, num_classes=num_classes)
+                loss = GT_FocalLoss(weights, num_classes)(gt_pred, outputs, pngs)
+
             else:
-                loss = CE_Loss(outputs, pngs, weights, num_classes=num_classes)
+                #loss = L.lovasz_softmax(outputs, pngs, classes='present', ignore=0)
+                loss = GT_LovaszLoss(weights,num_classes)(gt_pred,outputs,pngs)
+                #loss = CE_Loss(outputs, pngs, weights, num_classes=num_classes)
 
             if dice_loss:
                 main_dice = Dice_loss(outputs, labels)
@@ -65,14 +74,20 @@ def fit_one_epoch(model_train, model, loss_history, eval_callback, optimizer, ep
                 # ----------------------#
                 #   前向传播
                 # ----------------------#
-                outputs = model_train(imgs)
+                result = model_train(imgs)
+                if isinstance(result, tuple):
+                    gt_pred,outputs = result
+                else:
+                    outputs = result
                 # ----------------------#
                 #   损失计算
                 # ----------------------#
                 if focal_loss:
-                    loss = Focal_Loss(outputs, pngs, weights, num_classes=num_classes)
+                    loss = GT_FocalLoss(weights, num_classes)(gt_pred, outputs, pngs)
                 else:
-                    loss = CE_Loss(outputs, pngs, weights, num_classes=num_classes)
+                    #loss = L.lovasz_softmax(outputs, pngs, classes='present', ignore=0)
+                    loss = GT_LovaszLoss(weights,num_classes)(gt_pred,outputs,pngs)
+                    #loss = CE_Loss(outputs, pngs, weights, num_classes=num_classes)
 
                 if dice_loss:
                     main_dice = Dice_loss(outputs, labels)
@@ -122,14 +137,21 @@ def fit_one_epoch(model_train, model, loss_history, eval_callback, optimizer, ep
             # ----------------------#
             #   前向传播
             # ----------------------#
-            outputs = model_train(imgs)
+            #outputs = model_train(imgs)
+            result = model_train(imgs)
+            if isinstance(result, tuple):
+                gt_pred, outputs = result
+            else:
+                outputs = result
             # ----------------------#
             #   损失计算
             # ----------------------#
             if focal_loss:
-                loss = Focal_Loss(outputs, pngs, weights, num_classes=num_classes)
+                loss = GT_FocalLoss(weights, num_classes)(gt_pred, outputs, pngs)
             else:
-                loss = CE_Loss(outputs, pngs, weights, num_classes=num_classes)
+                #loss = L.lovasz_softmax(outputs, pngs, classes='present', ignore=0)
+                loss = GT_LovaszLoss(weights,num_classes)(gt_pred,outputs,pngs)
+                #loss = CE_Loss(outputs, pngs, weights, num_classes=num_classes)
 
             if dice_loss:
                 main_dice = Dice_loss(outputs, labels)
@@ -160,14 +182,14 @@ def fit_one_epoch(model_train, model, loss_history, eval_callback, optimizer, ep
         #   保存权值
         # -----------------------------------------------#
         if (epoch + 1) % save_period == 0 or epoch + 1 == Epoch:
-            torch.save(model, os.path.join(save_dir, 'ep%03d-loss%.3f-val_loss%.3f.pth' % (
+            torch.save(model.state_dict(), os.path.join(save_dir, 'ep%03d-loss%.3f-val_loss%.3f.pth' % (
             (epoch + 1), total_loss / epoch_step, val_loss / epoch_step_val)))
 
         if len(loss_history.val_loss) <= 1 or (val_loss / epoch_step_val) <= min(loss_history.val_loss):
             print('Save best model to best_epoch_weights.pth')
-            torch.save(model, os.path.join(save_dir, "best_epoch_weights.pth"))
+            torch.save(model.state_dict(), os.path.join(save_dir, "best_epoch_weights.pth"))
 
-        torch.save(model, os.path.join(save_dir, "last_epoch_weights.pth"))
+        torch.save(model.state_dict(), os.path.join(save_dir, "last_epoch_weights.pth"))
 
 
 def fit_one_epoch_no_val(model_train, model, loss_history, optimizer, epoch, epoch_step, gen, Epoch, cuda, dice_loss,
@@ -196,14 +218,21 @@ def fit_one_epoch_no_val(model_train, model, loss_history, optimizer, epoch, epo
             # ----------------------#
             #   前向传播
             # ----------------------#
-            outputs = model_train(imgs)
+            #outputs = model_train(imgs)
+            result = model_train(imgs)
+            if isinstance(result, tuple):
+                gt_pred, outputs = result
+            else:
+                outputs = result
             # ----------------------#
             #   损失计算
             # ----------------------#
             if focal_loss:
-                loss = Focal_Loss(outputs, pngs, weights, num_classes=num_classes)
+                loss = GT_FocalLoss(weights, num_classes)(gt_pred, outputs, pngs)
             else:
-                loss = CE_Loss(outputs, pngs, weights, num_classes=num_classes)
+                #loss = L.lovasz_softmax(outputs, pngs, classes='present', ignore=0)
+                loss = GT_LovaszLoss(weights,num_classes)(gt_pred,outputs,pngs)
+                #loss = CE_Loss(outputs, pngs, weights, num_classes=num_classes)
 
             if dice_loss:
                 main_dice = Dice_loss(outputs, labels)
@@ -223,14 +252,21 @@ def fit_one_epoch_no_val(model_train, model, loss_history, optimizer, epoch, epo
                 # ----------------------#
                 #   前向传播
                 # ----------------------#
-                outputs = model_train(imgs)
+                #outputs = model_train(imgs)
+                result = model_train(imgs)
+                if isinstance(result, tuple):
+                    gt_pred, outputs = result
+                else:
+                    outputs = result
                 # ----------------------#
                 #   损失计算
                 # ----------------------#
                 if focal_loss:
-                    loss = Focal_Loss(outputs, pngs, weights, num_classes=num_classes)
+                    loss = GT_FocalLoss(weights, num_classes)(gt_pred, outputs, pngs)
                 else:
-                    loss = CE_Loss(outputs, pngs, weights, num_classes=num_classes)
+                    #loss = L.lovasz_softmax(outputs, pngs, classes='present', ignore=0)
+                    loss = GT_LovaszLoss(weights,num_classes)(gt_pred,outputs,pngs)
+                    #loss = CE_Loss(outputs, pngs, weights, num_classes=num_classes)
 
                 if dice_loss:
                     main_dice = Dice_loss(outputs, labels)
@@ -268,11 +304,11 @@ def fit_one_epoch_no_val(model_train, model, loss_history, optimizer, epoch, epo
         #   保存权值
         # -----------------------------------------------#
         if (epoch + 1) % save_period == 0 or epoch + 1 == Epoch:
-            torch.save(model,
+            torch.save(model.state_dict(),
                        os.path.join(save_dir, 'ep%03d-loss%.3f.pth' % ((epoch + 1), total_loss / epoch_step)))
 
         if len(loss_history.losses) <= 1 or (total_loss / epoch_step) <= min(loss_history.losses):
             print('Save best model to best_epoch_weights.pth')
-            torch.save(model, os.path.join(save_dir, "best_epoch_weights.pth"))
+            torch.save(model.state_dict(), os.path.join(save_dir, "best_epoch_weights.pth"))
 
-        torch.save(model, os.path.join(save_dir, "last_epoch_weights.pth"))
+        torch.save(model.state_dict(), os.path.join(save_dir, "last_epoch_weights.pth"))

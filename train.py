@@ -11,10 +11,10 @@ from torch.utils.data import DataLoader
 
 from nets.unet_training import get_lr_scheduler, set_optimizer_lr, weights_init
 from utils.callbacks import EvalCallback, LossHistory
-from utils.dataloader_temp import UnetDataset, unet_dataset_collate
+from utils.dataloader import UnetDataset, unet_dataset_collate
 from utils.utils import (download_weights, seed_everything, show_config,
                          worker_init_fn)
-from utils.ege_utils_fit import fit_one_epoch
+from utils.utils_fit import fit_one_epoch
 
 '''
 训练自己的语义分割模型一定需要注意以下几点：
