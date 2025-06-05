@@ -1,4 +1,5 @@
 ## GEAUnet-for-Ridge-Pathway-Segmentation
+GEAUnet:Group Enhanced Attention U-Net
 ---
 #### 模型架构如下
 ![img.png](imgs/img.png)
